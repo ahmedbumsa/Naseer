@@ -956,63 +956,154 @@
   }
 
   async function checkRequestStatus(req) {
-    if (req.cur !== "USDC") {
-      return { status: "unsupported" };
-    }
+  if (req.cur !== "USDC") {
+    return { status: "unsupported" };
+  }
 
-    const preferred = getStatusContract();
-    const fallback = preferred === readContract ? (isConnected && contract ? contract : null) : readContract;
+  const preferred = getStatusContract();
+  const fallback =
+    preferred === readContract
+      ? (isConnected && contract ? contract : null)
+      : readContract;
 
-    let lastError = null;
-    for (const reader of [preferred, fallback]) {
-      if (!reader) continue;
+  let lastError = null;
+
+  for (const reader of [preferred, fallback]) {
+    if (!reader) continue;
+
+    try {
+      const targetAmount = ethers.utils.parseUnits(req.amt, 18);
+      const tag = "[" + req.inv + "]";
+
+      /*
+       * FAST PATH
+       * Look for recent PaymentSent events first.
+       * This avoids scanning the recipient's entire payment history.
+       */
       try {
-        const targetAmount = ethers.utils.parseUnits(req.amt, 18);
-        const ids = await reader.getPaymentIdsForAddress(req.to);
-        const tag = "[" + req.inv + "]";
+        const latestBlock = await reader.provider.getBlockNumber();
 
-        // Fetch every payment in parallel rather than one at a time — with a
-        // growing payment history, awaiting each call sequentially gets slow
-        // and can time out. A batch of parallel calls is far more reliable.
-        const payments = await fetchWithLimit(ids, 8, (id) => reader.getPayment(id).then((p) => ({ id, p })));
+        // Recent payments should normally be found here.
+        // The existing payment-history method remains as a fallback below.
+        const fromBlock = Math.max(0, latestBlock - 2000);
 
-        const match = payments.find(({ p }) =>
-          p.to.toLowerCase() === req.to.toLowerCase() &&
-          p.amount.eq(targetAmount) &&
-          (!req.inv || p.memo.includes(tag))
+        const filter = reader.filters.PaymentSent();
+        const logs = await reader.queryFilter(
+          filter,
+          fromBlock,
+          latestBlock
         );
 
-        if (match) {
-          let txHash = null;
-          try {
-            const logs = await reader.queryFilter(reader.filters.PaymentSent(match.id));
-            if (logs[0]) txHash = logs[0].transactionHash;
-          } catch (e) {
-            console.error("Could not fetch tx hash for paid request:", e);
+        for (let i = logs.length - 1; i >= 0; i--) {
+          const log = logs[i];
+
+          const paymentId =
+            log.args && log.args.paymentId
+              ? log.args.paymentId
+              : null;
+
+          if (paymentId === null) continue;
+
+          const payment = await reader.getPayment(paymentId);
+
+          if (
+            payment.to.toLowerCase() === req.to.toLowerCase() &&
+            payment.amount.eq(targetAmount) &&
+            (!req.inv || payment.memo.includes(tag))
+          ) {
+            return {
+              status: "paid",
+              from: payment.from,
+              amount: ethers.utils.formatUnits(payment.amount, 18),
+              timestamp: payment.timestamp.toNumber() * 1000,
+              txHash: log.transactionHash || null,
+            };
           }
-
-          return {
-            status: "paid",
-            from: match.p.from,
-            amount: ethers.utils.formatUnits(match.p.amount, 18),
-            timestamp: match.p.timestamp.toNumber() * 1000,
-            txHash,
-          };
         }
-
-        const expiresAt = req.ts + REQUEST_EXPIRY_HOURS * 60 * 60 * 1000;
-        if (Date.now() > expiresAt) {
-          return { status: "expired" };
-        }
-        return { status: "pending" };
-      } catch (err) {
-        console.error("Status check failed with one reader, trying fallback if available:", err);
-        lastError = err;
+      } catch (eventError) {
+        console.warn(
+          "Fast PaymentSent check failed, using payment history fallback:",
+          eventError
+        );
       }
-    }
 
-    return { status: "unknown", error: (lastError && (lastError.reason || lastError.message)) || "Unknown error" };
+      /*
+       * FALLBACK
+       * Keep the existing reliable payment-history check.
+       */
+      const ids = await reader.getPaymentIdsForAddress(req.to);
+
+      const payments = await fetchWithLimit(
+        ids,
+        8,
+        (id) =>
+          reader.getPayment(id).then((p) => ({
+            id,
+            p,
+          }))
+      );
+
+      const match = payments.find(({ p }) =>
+        p.to.toLowerCase() === req.to.toLowerCase() &&
+        p.amount.eq(targetAmount) &&
+        (!req.inv || p.memo.includes(tag))
+      );
+
+      if (match) {
+        let txHash = null;
+
+        try {
+          const logs = await reader.queryFilter(
+            reader.filters.PaymentSent(match.id)
+          );
+
+          if (logs[0]) {
+            txHash = logs[0].transactionHash;
+          }
+        } catch (e) {
+          console.error(
+            "Could not fetch tx hash for paid request:",
+            e
+          );
+        }
+
+        return {
+          status: "paid",
+          from: match.p.from,
+          amount: ethers.utils.formatUnits(match.p.amount, 18),
+          timestamp: match.p.timestamp.toNumber() * 1000,
+          txHash,
+        };
+      }
+
+      const expiresAt =
+        req.ts +
+        REQUEST_EXPIRY_HOURS * 60 * 60 * 1000;
+
+      if (Date.now() > expiresAt) {
+        return { status: "expired" };
+      }
+
+      return { status: "pending" };
+
+    } catch (err) {
+      console.error(
+        "Status check failed with one reader, trying fallback if available:",
+        err
+      );
+
+      lastError = err;
+    }
   }
+
+  return {
+    status: "unknown",
+    error:
+      (lastError &&
+        (lastError.reason || lastError.message)) ||
+      "Unknown error",
+  };
+                                        }
 
   let activeProvider = null; // the specific wallet provider the user picked (or the only one available)
 

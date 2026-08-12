@@ -1731,16 +1731,36 @@
     for (const t of ["Send", "Request", "History"]) {
       el("tab" + t + "Btn").classList.toggle("active", t === name);
       el("panel" + t).classList.toggle("active", t === name);
-    }
-    if (myRequestsPollInterval) {
+  }
+    if (name === "Request" && isConnected) {
+  renderMyRequests();
+
+  myRequestsPollInterval = setInterval(() => {
+    const requests = loadMyRequests(userAddress);
+
+    // Stop polling when there are no requests.
+    if (!requests.length) {
       clearInterval(myRequestsPollInterval);
       myRequestsPollInterval = null;
+      return;
     }
-    if (name === "Request" && isConnected) {
-      renderMyRequests();
-      myRequestsPollInterval = setInterval(renderMyRequests, 1000);
+
+    // Only render while there is at least one request
+    // that has not been permanently marked as paid.
+    const hasUnpaidRequest = requests.some((r) => {
+      const cached = myReqStatusCache[r.inv];
+      return !cached || cached.status !== "paid";
+    });
+
+    if (!hasUnpaidRequest) {
+      clearInterval(myRequestsPollInterval);
+      myRequestsPollInterval = null;
+      return;
     }
-  }
+
+    renderMyRequests();
+  }, 1000);
+    }
 
   let isConnected = false;
   const AVATAR_OPTIONS = ["🏪", "☕", "🍕", "🛍️", "💼", "🚀", "🎨", "📦", "🧾", "💈"];

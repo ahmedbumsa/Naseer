@@ -1933,20 +1933,64 @@
   // payment flicker back to "checking" or "pending".
   const myReqStatusCache = {};
 
-  async function renderMyRequests() {
-    const container = el("myRequestsList");
-    if (!container || !userAddress) return;
-    const requests = loadMyRequests(userAddress);
+function paidRequestKey(addr, inv) {
+  return "payquick_paid_request_" + addr.toLowerCase() + "_" + inv;
+}
 
-    if (requests.length === 0) {
-      container.innerHTML = '<div class="empty">No requests created yet.</div>';
-      return;
+function loadPaidRequest(inv) {
+  if (!userAddress || !inv) return null;
+
+  try {
+    const raw = localStorage.getItem(paidRequestKey(userAddress, inv));
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function savePaidRequest(inv, result) {
+  if (!userAddress || !inv) return;
+
+  try {
+    localStorage.setItem(
+      paidRequestKey(userAddress, inv),
+      JSON.stringify({
+        status: "paid",
+        amount: result.amount,
+        from: result.from,
+        txHash: result.txHash,
+        timestamp: result.timestamp
+      })
+    );
+  } catch (e) {
+    console.error("Could not save paid request:", e);
+  }
+}
+
+async function renderMyRequests() {
+  const container = el("myRequestsList");
+  if (!container || !userAddress) return;
+
+  const requests = loadMyRequests(userAddress);
+
+  if (requests.length === 0) {
+    container.innerHTML = '<div class="empty">No requests created yet.</div>';
+    return;
+  }
+
+  container.innerHTML = requests.map((r, i) => {
+    const savedPaid = loadPaidRequest(r.inv);
+
+    if (savedPaid) {
+      myReqStatusCache[r.inv] = savedPaid;
     }
 
-    container.innerHTML = requests.map((r, i) => {
-      const cached = myReqStatusCache[r.inv];
-      const initialBadge = cached ? statusBadgeHtml(cached.status) : statusBadgeHtml("unknown");
-      return `
+    const cached = myReqStatusCache[r.inv];
+    const initialBadge = cached
+      ? statusBadgeHtml(cached.status)
+      : statusBadgeHtml("unknown");
+
+    return `
       <div class="ledger-entry" id="myReq-${i}">
         <div>
           <span class="mono" style="font-size:11px; color:var(--muted);">${escapeHtml(r.inv || "")}</span>
@@ -1961,17 +2005,33 @@
         </div>
       </div>
     `;
-    }).join("");
+  }).join("");
 
-    requests.forEach(async (r, i) => {
-      // Already confirmed paid — skip re-checking entirely, nothing can change this.
-      if (myReqStatusCache[r.inv] && myReqStatusCache[r.inv].status === "paid") return;
+  requests.forEach(async (r, i) => {
+    // A confirmed payment is permanent.
+    // Never query the blockchain again for this request.
+    if (
+      myReqStatusCache[r.inv] &&
+      myReqStatusCache[r.inv].status === "paid"
+    ) {
+      return;
+    }
 
-      const result = await checkRequestStatus(r);
-      myReqStatusCache[r.inv] = result;
-      const slot = el("myReqStatus-" + i);
-      if (slot) slot.innerHTML = statusBadgeHtml(result.status);
-    });
+    const result = await checkRequestStatus(r);
+
+    myReqStatusCache[r.inv] = result;
+
+    // Once paid, permanently remember it in this browser.
+    if (result.status === "paid") {
+      savePaidRequest(r.inv, result);
+    }
+
+    const slot = el("myReqStatus-" + i);
+
+    if (slot) {
+      slot.innerHTML = statusBadgeHtml(result.status);
+    }
+  });
   }
 
   async function refreshHistory() {

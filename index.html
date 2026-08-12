@@ -576,29 +576,41 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .stat-box {
-    background: var(--card);
-    border: 1.5px solid var(--line);
-    border-radius: 6px;
-    padding: 12px 10px;
-    text-align: center;
-  }
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding: 16px 12px;
+  min-height: 72px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
 
-  .stat-label {
-    font-size: 9.5px;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--muted);
-    font-family: 'IBM Plex Mono', monospace;
-    margin-bottom: 5px;
-  }
+.stat-box:hover {
+  border-color: var(--muted);
+  transform: translateY(-1px);
+}
 
-  .stat-value {
-    font-size: 17px;
-    font-weight: 700;
-    font-family: 'IBM Plex Mono', monospace;
-    letter-spacing: -0.02em;
-  }
+.stat-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-family: 'IBM Plex Mono', monospace;
+  margin-bottom: 7px;
+}
 
+.stat-value {
+  font-size: 19px;
+  line-height: 1.15;
+  font-weight: 700;
+  font-family: 'IBM Plex Mono', monospace;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  word-break: break-word;
+  }
   .section-label {
     font-size: 11px;
     text-transform: uppercase;

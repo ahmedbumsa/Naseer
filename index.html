@@ -1532,7 +1532,7 @@ input:focus {
         await connectWallet();
         el("connectBar").style.display = "none";
         el("payBtn").style.display = "block";
-        if (!requestIsPaid) pollRequestStatus(req); // re-check now that reads can go through the wallet
+        if (!requestIsPaid) // re-check now that reads can go through the wallet
       } catch (err) {
         showPayStatus("Connection failed: " + (err.message || err), "error");
         el("connectBtn").disabled = false;

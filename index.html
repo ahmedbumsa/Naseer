@@ -1528,16 +1528,30 @@ input:focus {
 
     el("connectBtn").addEventListener("click", async () => {
       try {
-        el("connectBtn").disabled = true;
-        await connectWallet();
-        el("connectBar").style.display = "none";
-        el("payBtn").style.display = "block";
-        if (!requestIsPaid) pollRequestStatus(req); // re-check now that reads can go through the wallet
-      } catch (err) {
-        showPayStatus("Connection failed: " + (err.message || err), "error");
-        el("connectBtn").disabled = false;
-      }
-    });
+        el("connectBtn").addEventListener("click", async () => {
+  try {
+    el("connectBtn").disabled = true;
+    await connectWallet();
+
+    el("connectBar").style.display = "none";
+
+    // Check the invoice immediately after wallet connection.
+    // Do not show the Pay button until we know whether it is already paid.
+    if (!requestIsPaid) {
+      await pollRequestStatus(req);
+    }
+
+    // Only allow payment when the request is still unpaid.
+    if (!requestIsPaid) {
+      el("payBtn").style.display = "block";
+    }
+  } catch (err) {
+    console.error(err);
+    showPayStatus("Connection failed: " + (err.message || err), "error");
+    el("connectBtn").style.display = "block";
+    el("connectBtn").disabled = false;
+  }
+});
 
     el("payBtn").addEventListener("click", async () => {
       try {

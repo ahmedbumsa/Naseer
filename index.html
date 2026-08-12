@@ -631,16 +631,24 @@
   }
 
   input {
-    width: 100%;
-    padding: 12px 14px;
-    border: 1.5px solid var(--line);
-    border-radius: 4px;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 14px;
-    background: var(--paper);
-    color: var(--ink);
-    margin-bottom: 14px;
-  }
+  width: 100%;
+  padding: 14px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 15px;
+  background: var(--paper);
+  color: var(--ink);
+  margin-bottom: 14px;
+  min-height: 48px;
+  box-sizing: border-box;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--usdc-blue);
+  box-shadow: 0 0 0 2px rgba(42, 115, 204, 0.08);
+}
 
   input:focus { outline: none; border-color: var(--usdc-blue); }
 

@@ -2442,12 +2442,33 @@ async function renderMyRequests() {
         explorerNote.style.display = logLookupFailed ? "block" : "none";
       }
 
-      el("statSent").textContent = totalSent.toLocaleString(undefined, { maximumFractionDigits: 2 });
-      el("statReceived").textContent = totalReceived.toLocaleString(undefined, { maximumFractionDigits: 2 });
-      el("statCount").textContent = payments.length;
-      el("statToday").textContent = todayReceived.toLocaleString(undefined, { maximumFractionDigits: 2 });
-      el("statPaymentsReceived").textContent = receivedCount;
-      el("statTotalRevenue").textContent = totalReceived.toLocaleString(undefined, { maximumFractionDigits: 2 }) + " USDC";
+el("statSent").textContent =
+  "$" + totalSent.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+el("statReceived").textContent =
+  "$" + totalReceived.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+el("statCount").textContent = payments.length;
+
+el("statToday").textContent =
+  "$" + todayReceived.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+el("statPaymentsReceived").textContent = receivedCount;
+
+el("statTotalRevenue").textContent =
+  "$" + totalReceived.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
     } catch (err) {
       console.error(err);
       const empty = el("historyEmpty");

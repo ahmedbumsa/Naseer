@@ -644,11 +644,36 @@
 
   input:focus { outline: none; border-color: var(--usdc-blue); }
 
-  .field-row { display: flex; gap: 10px; }
-  .field-row > div { flex: 1; }
+  .field-row {
+  display: flex;
+  gap: 8px;
+}
 
-  .currency-btn { opacity: 0.5; }
-  .currency-btn.active { opacity: 1; background: var(--ink); color: var(--paper); }
+.field-row > div {
+  flex: 1;
+}
+
+.currency-btn {
+  opacity: 0.55;
+  min-height: 44px;
+  border-radius: 8px;
+  transition: opacity 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.currency-btn:hover {
+  opacity: 0.85;
+}
+
+.currency-btn:active {
+  transform: scale(0.98);
+}
+
+.currency-btn.active {
+  opacity: 1;
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
 
   .status {
     font-size: 13px;

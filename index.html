@@ -1527,17 +1527,26 @@ input:focus {
     `;
 
     el("connectBtn").addEventListener("click", async () => {
-      try {
-        el("connectBtn").disabled = true;
-        await connectWallet();
-        el("connectBar").style.display = "none";
-        el("payBtn").style.display = "block";
-        if (!requestIsPaid) // re-check now that reads can go through the wallet
-      } catch (err) {
-        showPayStatus("Connection failed: " + (err.message || err), "error");
-        el("connectBtn").disabled = false;
-      }
-    });
+  try {
+    el("connectBtn").disabled = true;
+    await connectWallet();
+
+    if (!requestIsPaid) {
+      await pollRequestStatus(req);
+    }
+
+    if (requestIsPaid) {
+      return;
+    }
+
+    el("connectBar").style.display = "none";
+    el("payBtn").style.display = "block";
+  } catch (err) {
+    console.error(err);
+    showPayStatus("Connection failed: " + (err.message || err), "error");
+    el("connectBtn").disabled = false;
+  }
+});
 
     el("payBtn").addEventListener("click", async () => {
       try {
